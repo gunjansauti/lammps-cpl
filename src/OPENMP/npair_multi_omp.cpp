@@ -25,6 +25,7 @@
 #include "my_page.h"
 #include "neigh_list.h"
 #include "neighbor.h"
+#include "pair.h"
 
 #include <cmath>
 
@@ -32,8 +33,8 @@ using namespace LAMMPS_NS;
 
 /* ---------------------------------------------------------------------- */
 
-template<int HALF, int NEWTON, int TRI, int SIZE, int ATOMONLY>
-NPairMultiOmp<HALF, NEWTON, TRI, SIZE, ATOMONLY>::NPairMultiOmp(LAMMPS *lmp) : NPair(lmp) {}
+template<int HALF, int NEWTON, int TRI, int SIZE, int PAIRWISE, int ATOMONLY>
+NPairMultiOmp<HALF, NEWTON, TRI, SIZE, PAIRWISE, ATOMONLY>::NPairMultiOmp(LAMMPS *lmp) : NPair(lmp) {}
 
 /* ----------------------------------------------------------------------
    multi stencil is icollection-jcollection dependent
@@ -51,8 +52,8 @@ NPairMultiOmp<HALF, NEWTON, TRI, SIZE, ATOMONLY>::NPairMultiOmp(LAMMPS *lmp) : N
      every pair stored exactly once by some processor
 ------------------------------------------------------------------------- */
 
-template<int HALF, int NEWTON, int TRI, int SIZE, int ATOMONLY>
-void NPairMultiOmp<HALF, NEWTON, TRI, SIZE, ATOMONLY>::build(NeighList *list)
+template<int HALF, int NEWTON, int TRI, int SIZE, int PAIRWISE, int ATOMONLY>
+void NPairMultiOmp<HALF, NEWTON, TRI, SIZE, PAIRWISE, ATOMONLY>::build(NeighList *list)
 {
   const int nlocal = (includegroup) ? atom->nfirst : atom->nlocal;
   const int molecular = atom->molecular;
@@ -211,9 +212,15 @@ void NPairMultiOmp<HALF, NEWTON, TRI, SIZE, ATOMONLY>::build(NeighList *list)
           delz = ztmp - x[j][2];
           rsq = delx * delx + dely * dely + delz * delz;
 
-          if (SIZE) {
-            radsum = radius[i] + radius[j];
-            cut = radsum + skin;
+          if (SIZE || PAIRWISE) {
+
+            if (PAIRWISE) {
+              cut = pair->pair2cut(i, j);
+              cut += skin;
+            } else {
+              radsum = radius[i] + radius[j];
+              cut = radsum + skin;
+            }
             cutsq = cut * cut;
 
             if (ATOMONLY) {
@@ -287,20 +294,28 @@ void NPairMultiOmp<HALF, NEWTON, TRI, SIZE, ATOMONLY>::build(NeighList *list)
 }
 
 namespace LAMMPS_NS {
-template class NPairMultiOmp<0,1,0,0,0>;
-template class NPairMultiOmp<1,0,0,0,0>;
-template class NPairMultiOmp<1,1,0,0,0>;
-template class NPairMultiOmp<1,1,1,0,0>;
-template class NPairMultiOmp<0,1,0,1,0>;
-template class NPairMultiOmp<1,0,0,1,0>;
-template class NPairMultiOmp<1,1,0,1,0>;
-template class NPairMultiOmp<1,1,1,1,0>;
-template class NPairMultiOmp<0,1,0,0,1>;
-template class NPairMultiOmp<1,0,0,0,1>;
-template class NPairMultiOmp<1,1,0,0,1>;
-template class NPairMultiOmp<1,1,1,0,1>;
-template class NPairMultiOmp<0,1,0,1,1>;
-template class NPairMultiOmp<1,0,0,1,1>;
-template class NPairMultiOmp<1,1,0,1,1>;
-template class NPairMultiOmp<1,1,1,1,1>;
+template class NPairMultiOmp<0,1,0,0,0,0>;
+template class NPairMultiOmp<1,0,0,0,0,0>;
+template class NPairMultiOmp<1,1,0,0,0,0>;
+template class NPairMultiOmp<1,1,1,0,0,0>;
+template class NPairMultiOmp<0,1,0,1,0,0>;
+template class NPairMultiOmp<1,0,0,1,0,0>;
+template class NPairMultiOmp<1,1,0,1,0,0>;
+template class NPairMultiOmp<1,1,1,1,0,0>;
+template class NPairMultiOmp<0,1,0,0,1,0>;
+template class NPairMultiOmp<1,0,0,0,1,0>;
+template class NPairMultiOmp<1,1,0,0,1,0>;
+template class NPairMultiOmp<1,1,1,0,1,0>;
+template class NPairMultiOmp<0,1,0,0,0,1>;
+template class NPairMultiOmp<1,0,0,0,0,1>;
+template class NPairMultiOmp<1,1,0,0,0,1>;
+template class NPairMultiOmp<1,1,1,0,0,1>;
+template class NPairMultiOmp<0,1,0,1,0,1>;
+template class NPairMultiOmp<1,0,0,1,0,1>;
+template class NPairMultiOmp<1,1,0,1,0,1>;
+template class NPairMultiOmp<1,1,1,1,0,1>;
+template class NPairMultiOmp<0,1,0,0,1,1>;
+template class NPairMultiOmp<1,0,0,0,1,1>;
+template class NPairMultiOmp<1,1,0,0,1,1>;
+template class NPairMultiOmp<1,1,1,0,1,1>;
 }

@@ -22,6 +22,7 @@
 #include "my_page.h"
 #include "neigh_list.h"
 #include "neighbor.h"
+#include "pair.h"
 
 #include <cmath>
 
@@ -30,8 +31,8 @@ using namespace NeighConst;
 
 /* ---------------------------------------------------------------------- */
 
-template<int HALF, int NEWTON, int TRI, int SIZE, int ATOMONLY>
-NPairBin<HALF, NEWTON, TRI, SIZE, ATOMONLY>::NPairBin(LAMMPS *lmp) : NPair(lmp) {}
+template<int HALF, int NEWTON, int TRI, int SIZE, int PAIRWISE, int ATOMONLY>
+NPairBin<HALF, NEWTON, TRI, SIZE, PAIRWISE, ATOMONLY>::NPairBin(LAMMPS *lmp) : NPair(lmp) {}
 
 /* ----------------------------------------------------------------------
    Full:
@@ -48,12 +49,12 @@ NPairBin<HALF, NEWTON, TRI, SIZE, ATOMONLY>::NPairBin(LAMMPS *lmp) : NPair(lmp) 
      every pair stored exactly once by some processor
 ------------------------------------------------------------------------- */
 
-template<int HALF, int NEWTON, int TRI, int SIZE, int ATOMONLY>
-void NPairBin<HALF, NEWTON, TRI, SIZE, ATOMONLY>::build(NeighList *list)
+template<int HALF, int NEWTON, int TRI, int SIZE, int PAIRWISE, int ATOMONLY>
+void NPairBin<HALF, NEWTON, TRI, SIZE, PAIRWISE, ATOMONLY>::build(NeighList *list)
 {
   int i, j, jh, k, n, itype, jtype, ibin, bin_start, which, imol, iatom, moltemplate;
   tagint itag, jtag, tagprev;
-  double xtmp, ytmp, ztmp, delx, dely, delz, rsq, radsum,cut,cutsq;
+  double xtmp, ytmp, ztmp, delx, dely, delz, rsq, radsum, cut, cutsq;
   int *neighptr;
 
   const double delta = 0.01 * force->angstrom;
@@ -178,9 +179,15 @@ void NPairBin<HALF, NEWTON, TRI, SIZE, ATOMONLY>::build(NeighList *list)
         delz = ztmp - x[j][2];
         rsq = delx * delx + dely * dely + delz * delz;
 
-        if (SIZE) {
-          radsum = radius[i] + radius[j];
-          cut = radsum + skin;
+        if (SIZE || PAIRWISE) {
+
+          if (PAIRWISE) {
+            cut = pair->pair2cut(i, j);
+            cut += skin;
+          } else {
+            radsum = radius[i] + radius[j];
+            cut = radsum + skin;
+          }
           cutsq = cut * cut;
 
           if (ATOMONLY) {
@@ -253,20 +260,28 @@ void NPairBin<HALF, NEWTON, TRI, SIZE, ATOMONLY>::build(NeighList *list)
 }
 
 namespace LAMMPS_NS {
-template class NPairBin<0,1,0,0,0>;
-template class NPairBin<1,0,0,0,0>;
-template class NPairBin<1,1,0,0,0>;
-template class NPairBin<1,1,1,0,0>;
-template class NPairBin<0,1,0,1,0>;
-template class NPairBin<1,0,0,1,0>;
-template class NPairBin<1,1,0,1,0>;
-template class NPairBin<1,1,1,1,0>;
-template class NPairBin<0,1,0,0,1>;
-template class NPairBin<1,0,0,0,1>;
-template class NPairBin<1,1,0,0,1>;
-template class NPairBin<1,1,1,0,1>;
-template class NPairBin<0,1,0,1,1>;
-template class NPairBin<1,0,0,1,1>;
-template class NPairBin<1,1,0,1,1>;
-template class NPairBin<1,1,1,1,1>;
+template class NPairBin<0,1,0,0,0,0>;
+template class NPairBin<1,0,0,0,0,0>;
+template class NPairBin<1,1,0,0,0,0>;
+template class NPairBin<1,1,1,0,0,0>;
+template class NPairBin<0,1,0,1,0,0>;
+template class NPairBin<1,0,0,1,0,0>;
+template class NPairBin<1,1,0,1,0,0>;
+template class NPairBin<1,1,1,1,0,0>;
+template class NPairBin<0,1,0,0,1,0>;
+template class NPairBin<1,0,0,0,1,0>;
+template class NPairBin<1,1,0,0,1,0>;
+template class NPairBin<1,1,1,0,1,0>;
+template class NPairBin<0,1,0,0,0,1>;
+template class NPairBin<1,0,0,0,0,1>;
+template class NPairBin<1,1,0,0,0,1>;
+template class NPairBin<1,1,1,0,0,1>;
+template class NPairBin<0,1,0,1,0,1>;
+template class NPairBin<1,0,0,1,0,1>;
+template class NPairBin<1,1,0,1,0,1>;
+template class NPairBin<1,1,1,1,0,1>;
+template class NPairBin<0,1,0,0,1,1>;
+template class NPairBin<1,0,0,0,1,1>;
+template class NPairBin<1,1,0,0,1,1>;
+template class NPairBin<1,1,1,0,1,1>;
 }
