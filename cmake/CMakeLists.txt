@@ -78,7 +78,7 @@ include(LAMMPSUtils)
 
 get_lammps_version(${LAMMPS_SOURCE_DIR}/version.h PROJECT_VERSION)
 
-include(PreventInSourceBuilds)
+#include(PreventInSourceBuilds)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CXX_FLAGS)
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel." FORCE)
@@ -195,7 +195,7 @@ mark_as_advanced(LAMMPS_MACHINE)
 if(LAMMPS_MACHINE)
   set(LAMMPS_MACHINE "_${LAMMPS_MACHINE}")
 endif()
-set(LAMMPS_BINARY lmp${LAMMPS_MACHINE})
+set(LAMMPS_BINARY lmp_cpl${LAMMPS_MACHINE})
 
 option(BUILD_SHARED_LIBS "Build shared library" OFF)
 option(CMAKE_POSITION_INDEPENDENT_CODE "Create object compatible with shared libraries" ON)
@@ -222,14 +222,23 @@ if(BUILD_SHARED_LIBS AND (CMAKE_SYSTEM_NAME STREQUAL "Windows") AND CMAKE_CROSSC
   set_target_properties(lammps PROPERTIES LINK_FLAGS "-Wl,--export-all-symbols")
 endif()
 
-add_executable(lmp ${MAIN_SOURCES})
-target_link_libraries(lmp PRIVATE lammps)
-set_target_properties(lmp PROPERTIES OUTPUT_NAME ${LAMMPS_BINARY})
+############## FOR CPL ###################
+include_directories($ENV{CPL_INCLUDE_PATH})
+include_directories($ENV{CPL_THIRD_PARTY_INC})
+link_directories($ENV{CPL_LIBRARY_PATH})
+link_directories($ENV{CPL_THIRD_PARTY_LIB})
+##########################################
+
+add_executable(lmp_cpl ${MAIN_SOURCES})
+target_link_libraries(lmp_cpl PRIVATE lammps)
+target_link_libraries(lmp_cpl PRIVATE cpl)
+target_link_libraries(lmp_cpl PRIVATE jsonfortran)
+set_target_properties(lmp_cpl PROPERTIES OUTPUT_NAME ${LAMMPS_BINARY})
 # re-export all symbols for plugins
 if(PKG_PLUGIN AND (NOT ((CMAKE_SYSTEM_NAME STREQUAL "Windows"))))
-  set_target_properties(lmp PROPERTIES ENABLE_EXPORTS TRUE)
+  set_target_properties(lmp_cpl PROPERTIES ENABLE_EXPORTS TRUE)
 endif()
-install(TARGETS lmp EXPORT LAMMPS_Targets DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS lmp_cpl EXPORT LAMMPS_Targets DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 option(CMAKE_VERBOSE_MAKEFILE "Generate verbose Makefiles" OFF)
 
@@ -317,6 +326,7 @@ set(STANDARD_PACKAGES
   SRD
   TALLY
   UEF
+  USER-CPL
   VORONOI
   VTK
   YAFF)
@@ -453,7 +463,7 @@ if(BUILD_OMP)
   endif()
   target_compile_definitions(lammps PRIVATE -DLAMMPS_OMP_COMPAT=${LAMMPS_OMP_COMPAT_LEVEL})
   target_link_libraries(lammps PRIVATE OpenMP::OpenMP_CXX)
-  target_link_libraries(lmp PRIVATE OpenMP::OpenMP_CXX)
+  target_link_libraries(lmp_cpl PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
 # lower C++ standard for fmtlib sources when using Intel classic compiler
@@ -567,7 +577,7 @@ foreach(_FLAG ${CMAKE_TUNE_FLAGS})
   target_compile_options(lammps PRIVATE ${_FLAG})
   # skip these flags when linking the main executable
   if(NOT (("${_FLAG}" STREQUAL "-Xcudafe") OR (("${_FLAG}" STREQUAL "--diag_suppress=unrecognized_pragma"))))
-    target_compile_options(lmp PRIVATE ${_FLAG})
+    target_compile_options(lmp_cpl PRIVATE ${_FLAG})
   endif()
 endforeach()
 ########################################################################
