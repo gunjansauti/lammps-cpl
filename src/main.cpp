@@ -22,6 +22,7 @@
 
 #include <cstdlib>
 #include <mpi.h>
+#include "cpl.h"
 
 #if defined(LAMMPS_TRAP_FPE) && defined(_GNU_SOURCE)
 #include <fenv.h>
@@ -48,20 +49,23 @@ static void finalize()
 int main(int argc, char **argv)
 {
   MPI_Init(&argc, &argv);
-  MPI_Comm lammps_comm = MPI_COMM_WORLD;
+
+  MPI_Comm comm;
+  CPL::init(CPL::md_realm, comm);
+  MPI_Comm lammps_comm = comm;
 
 #if defined(LMP_MDI)
   // initialize MDI interface, if compiled in
 
   int mdi_flag;
-  if (MDI_Init(&argc, &argv)) MPI_Abort(MPI_COMM_WORLD, 1);
-  if (MDI_Initialized(&mdi_flag)) MPI_Abort(MPI_COMM_WORLD, 1);
+  if (MDI_Init(&argc, &argv)) MPI_Abort(comm, 1);
+  if (MDI_Initialized(&mdi_flag)) MPI_Abort(comm, 1);
 
   // get the MPI communicator that spans all ranks running LAMMPS
-  // when using MDI, this may be a subset of MPI_COMM_WORLD
+  // when using MDI, this may be a subset of comm
 
   if (mdi_flag)
-    if (MDI_MPI_get_world_comm(&lammps_comm)) MPI_Abort(MPI_COMM_WORLD, 1);
+    if (MDI_MPI_get_world_comm(&lammps_comm)) MPI_Abort(comm, 1);
 #endif
 
 #if defined(LAMMPS_TRAP_FPE) && defined(_GNU_SOURCE)
@@ -86,17 +90,18 @@ int main(int argc, char **argv)
   } catch (LAMMPSException &) {
     finalize();
     MPI_Barrier(lammps_comm);
+CPL::finalize();
     MPI_Finalize();
     exit(1);
   } catch (fmt::format_error &fe) {
     fprintf(stderr, "fmt::format_error: %s\n", fe.what());
     finalize();
-    MPI_Abort(MPI_COMM_WORLD, 1);
+    MPI_Abort(comm, 1);
     exit(1);
   } catch (std::exception &e) {
     fprintf(stderr, "Exception: %s\n", e.what());
     finalize();
-    MPI_Abort(MPI_COMM_WORLD, 1);
+    MPI_Abort(comm, 1);
     exit(1);
   }
 #else
@@ -107,11 +112,12 @@ int main(int argc, char **argv)
   } catch (fmt::format_error &fe) {
     fprintf(stderr, "fmt::format_error: %s\n", fe.what());
     finalize();
-    MPI_Abort(MPI_COMM_WORLD, 1);
+    MPI_Abort(comm, 1);
     exit(1);
   }
 #endif
   finalize();
   MPI_Barrier(lammps_comm);
+CPL::finalize();
   MPI_Finalize();
 }
